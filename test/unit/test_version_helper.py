@@ -55,8 +55,8 @@ class VersionHelperTestCase(unittest.TestCase):
         versions = helper.get_all_versions()
         self.assertGreater(len(versions), 0)
 
-        self.assertIn(StrictVersion('1.0'), versions)
-        self.assertIn(StrictVersion('1.1'), versions)
+        self.assertIn(StrictVersion('1.0.0'), versions)
+        self.assertIn(StrictVersion('1.1.0'), versions)
 
     def test_get_url_for_version(self):
         helper = VersionHelper()

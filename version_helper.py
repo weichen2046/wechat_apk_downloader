@@ -43,6 +43,10 @@ class VersionHelper(object):
         tags_a.reverse()
         self.all_versions = [re.match(r'.* ((\d+\.)+\d+)', str(tag_a)
                                       ).groups()[0] for tag_a in tags_a]
+
+        self.all_versions = ['{}.0'.format(v) if re.match(
+            r'^\d+\.\d+$', v) else v for v in self.all_versions]
+
         self.all_versions_loaded = True
         return self.all_versions
 
@@ -70,19 +74,32 @@ class VersionHelper(object):
         index = bisect.bisect_right(self.db_list, StrictVersion(version))
 
         if index < len(self.db_list):
-            up_ver = str(self.db_list[index])
+            up_ver = '.'.join(map(lambda v: str(v), self.db_list[index].version))
             up_code = self.db_dict[up_ver]
 
+            violent_low = 1
+            violent_high = up_code - 1
+
+            short_ver = version.replace('.', '')
             up_code -= 20
             while up_code > 0:
-                target_url = target_url_fmt.format(
-                    version.replace('.', ''), up_code)
+                target_url = target_url_fmt.format(short_ver, up_code)
                 resp = requests.head(target_url)
                 if resp.status_code == requests.codes.not_found:
                     up_code -= 20
                     continue
                 self.__update_local_db(version, up_code)
                 return target_url
+
+            while violent_high > violent_low:
+                target_url = target_url_fmt.format(short_ver, violent_high)
+                resp = requests.head(target_url)
+                if resp.status_code == requests.codes.not_found:
+                    violent_high -= 1
+                    continue
+                self.__update_local_db(version, violent_high)
+                return target_url
+
         else:
             server_newest_ver = StrictVersion(self.all_versions[-1])
             if StrictVersion(version) > server_newest_ver:
@@ -94,14 +111,13 @@ class VersionHelper(object):
             target_ver_index = self.all_versions.index(version)
             target_ver_code = (
                 target_ver_index - local_largest_ver_index) * 20 + self.db_dict[local_largest_ver]
-            target_url = target_url_fmt.format(
-                version.replace('.', ''), target_ver_code)
+            target_url = target_url_fmt.format(short_ver, target_ver_code)
 
             resp = requests.head(target_url)
             if resp.status_code == requests.codes.ok:
                 self.__update_local_db(version, target_ver_code)
                 return target_url
-            return None
+        return None
 
     def is_version_exist(self, version):
         if not self.all_versions_loaded:
